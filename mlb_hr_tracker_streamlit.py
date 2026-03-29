@@ -3,6 +3,7 @@ import pandas as pd
 import statsapi
 import streamlit as st
 
+REFRESH_SECONDS = 300  # 5 minutes
 CURRENT_SEASON = int(statsapi.latest_season()["seasonId"])
 
 TEAMS = {
@@ -28,21 +29,22 @@ TEAMS = {
         "Mike Trout",
         "Shohei Ohtani",
     ],
-    "Faggotron": [
+    "Team 3": [
         "Trevor Story",
         "Pete Alonso",
         "Lenyn Sosa",
         "José Ramírez",
         "Shea Langeliers",
         "Riley Greene",
-        "Fernando Tatis Jr.",
+        "Fernando Tatís Jr.",
         "Pete Crow-Armstrong",
         "Kyle Schwarber",
     ],
 }
 
 
-def get_hr(player_name):
+@st.cache_data(ttl=REFRESH_SECONDS)
+def get_player_id(player_name):
     try:
         players = statsapi.lookup_player(player_name)
         if not players:
@@ -50,8 +52,18 @@ def get_hr(player_name):
 
         active_players = [p for p in players if p.get("active")]
         player = active_players[0] if active_players else players[0]
-        player_id = player["id"]
+        return player["id"]
+    except Exception:
+        return None
 
+
+@st.cache_data(ttl=REFRESH_SECONDS)
+def get_hr(player_name):
+    player_id = get_player_id(player_name)
+    if player_id is None:
+        return None
+
+    try:
         data = statsapi.player_stat_data(
             player_id,
             group="hitting",
@@ -61,11 +73,11 @@ def get_hr(player_name):
 
         stats = data.get("stats", {})
         return int(stats.get("homeRuns", 0))
-
     except Exception:
         return None
 
 
+@st.cache_data(ttl=REFRESH_SECONDS)
 def build_dataframe():
     rows = []
 
@@ -104,8 +116,16 @@ def build_dataframe():
 
 st.set_page_config(page_title="MLB HR Tracker", layout="wide")
 
-st.title("Real Nuke Hitters")
-st.caption(f"Live {CURRENT_SEASON} home run tracker for your fantasy teams")
+st.title("⚾ MLB Home Run Tracker")
+st.caption(f"Live {CURRENT_SEASON} season-to-date home run tracker")
+
+col_a, col_b = st.columns([1, 1])
+with col_a:
+    st.write(f"Refresh interval: {REFRESH_SECONDS} seconds")
+with col_b:
+    if st.button("Refresh now"):
+        st.cache_data.clear()
+        st.rerun()
 
 overall_df, team_totals_df = build_dataframe()
 valid_leaders = overall_df.dropna(subset=["HR"])
@@ -143,3 +163,8 @@ for team_name in TEAMS:
     st.subheader(team_name)
     team_df = overall_df[overall_df["Team"] == team_name][["Player", "HR", "Status"]]
     st.dataframe(team_df, use_container_width=True, hide_index=True)
+
+st.markdown(
+    f"<meta http-equiv='refresh' content='{REFRESH_SECONDS}'>",
+    unsafe_allow_html=True,
+)
