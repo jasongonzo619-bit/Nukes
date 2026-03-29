@@ -6,17 +6,17 @@ import streamlit as st
 SEASON = 2026
 
 TEAMS = {
-    "Team 1": [
+    "Gup": [
         "Bobby Witt Jr.", "Matt Olson", "Ketel Marte", "Eugenio Suárez",
         "William Contreras", "Juan Soto", "Aaron Judge", "Byron Buxton",
         "Hunter Goodman"
     ],
-    "Team 2": [
+    "Mr. Robotsex": [
         "Corey Seager", "Vladimir Guerrero Jr.", "Brandon Lowe", "Rafael Devers",
         "Cal Raleigh", "Yordan Alvarez", "Kyle Stowers", "Mike Trout",
         "Shohei Ohtani"
     ],
-    "Team 3": [
+    "Faggotron": [
         "Trevor Story", "Pete Alonso", "Lenyn Sosa", "José Ramírez",
         "Shea Langeliers", "Riley Greene", "Fernando Tatís Jr.",
         "Pete Crow-Armstrong", "Kyle Schwarber"
