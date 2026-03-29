@@ -29,7 +29,7 @@ TEAMS = {
         "Mike Trout",
         "Shohei Ohtani",
     ],
-    "Team 3": [
+    "Faggotron": [
         "Trevor Story",
         "Pete Alonso",
         "Lenyn Sosa",
