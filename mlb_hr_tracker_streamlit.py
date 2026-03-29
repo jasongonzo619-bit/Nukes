@@ -3,7 +3,7 @@ import pandas as pd
 import statsapi
 import streamlit as st
 
-SEASON = 2025
+CURRENT_SEASON = int(statsapi.latest_season()["seasonId"])
 
 TEAMS = {
     "King Gup": [
@@ -52,28 +52,15 @@ def get_hr(player_name):
         player = active_players[0] if active_players else players[0]
         player_id = player["id"]
 
-        data = statsapi.get(
-            "people",
-            {
-                "personIds": player_id,
-                "hydrate": f"stats(group=[hitting],type=[season],season={SEASON})",
-            },
+        data = statsapi.player_stat_data(
+            player_id,
+            group="hitting",
+            type="season",
+            season=CURRENT_SEASON,
         )
 
-        people = data.get("people", [])
-        if not people:
-            return None
-
-        stats = people[0].get("stats", [])
-        if not stats:
-            return 0
-
-        splits = stats[0].get("splits", [])
-        if not splits:
-            return 0
-
-        stat_block = splits[0].get("stat", {})
-        return int(stat_block.get("homeRuns", 0))
+        stats = data.get("stats", {})
+        return int(stats.get("homeRuns", 0))
 
     except Exception:
         return None
@@ -118,7 +105,7 @@ def build_dataframe():
 st.set_page_config(page_title="MLB HR Tracker", layout="wide")
 
 st.title("⚾ MLB Home Run Tracker")
-st.caption("Custom home run tracker for your fantasy teams")
+st.caption(f"Live {CURRENT_SEASON} home run tracker for your fantasy teams")
 
 overall_df, team_totals_df = build_dataframe()
 valid_leaders = overall_df.dropna(subset=["HR"])
