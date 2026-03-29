@@ -3,7 +3,7 @@ import pandas as pd
 import statsapi
 import streamlit as st
 
-REFRESH_SECONDS = 300  # 5 minutes
+REFRESH_SECONDS = 300
 CURRENT_SEASON = int(statsapi.latest_season()["seasonId"])
 
 TEAMS = {
@@ -119,13 +119,9 @@ st.set_page_config(page_title="MLB HR Tracker", layout="wide")
 st.title("⚾ MLB Home Run Tracker")
 st.caption(f"Live {CURRENT_SEASON} season-to-date home run tracker")
 
-col_a, col_b = st.columns([1, 1])
-with col_a:
-    st.write(f"Refresh interval: {REFRESH_SECONDS} seconds")
-with col_b:
-    if st.button("Refresh now"):
-        st.cache_data.clear()
-        st.rerun()
+if st.button("Refresh now"):
+    st.cache_data.clear()
+    st.rerun()
 
 overall_df, team_totals_df = build_dataframe()
 valid_leaders = overall_df.dropna(subset=["HR"])
