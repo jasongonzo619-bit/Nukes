@@ -35,7 +35,7 @@ TEAMS = {
         "José Ramírez",
         "Shea Langeliers",
         "Riley Greene",
-        "Fernando Tatís Jr.",
+        "Fernando Tatis Jr.",
         "Pete Crow-Armstrong",
         "Kyle Schwarber",
     ],
@@ -104,7 +104,7 @@ def build_dataframe():
 
 st.set_page_config(page_title="MLB HR Tracker", layout="wide")
 
-st.title("⚾ MLB Home Run Tracker")
+st.title("Real Nuke Hitters")
 st.caption(f"Live {CURRENT_SEASON} home run tracker for your fantasy teams")
 
 overall_df, team_totals_df = build_dataframe()
