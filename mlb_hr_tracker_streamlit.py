@@ -1,182 +1,113 @@
-import time
 from datetime import datetime
-
 import pandas as pd
 import statsapi
 import streamlit as st
 
 SEASON = 2026
-REFRESH_SECONDS = 300
 
 TEAMS = {
     "Team 1": [
-        "Bobby Witt Jr.",
-        "Matt Olson",
-        "Ketel Marte",
-        "Eugenio Suárez",
-        "William Contreras",
-        "Juan Soto",
-        "Aaron Judge",
-        "Byron Buxton",
-        "Hunter Goodman",
+        "Bobby Witt Jr.", "Matt Olson", "Ketel Marte", "Eugenio Suárez",
+        "William Contreras", "Juan Soto", "Aaron Judge", "Byron Buxton",
+        "Hunter Goodman"
     ],
     "Team 2": [
-        "Corey Seager",
-        "Vladimir Guerrero Jr.",
-        "Brandon Lowe",
-        "Rafael Devers",
-        "Cal Raleigh",
-        "Yordan Alvarez",
-        "Kyle Stowers",
-        "Mike Trout",
-        "Shohei Ohtani",
+        "Corey Seager", "Vladimir Guerrero Jr.", "Brandon Lowe", "Rafael Devers",
+        "Cal Raleigh", "Yordan Alvarez", "Kyle Stowers", "Mike Trout",
+        "Shohei Ohtani"
     ],
     "Team 3": [
-        "Trevor Story",
-        "Pete Alonso",
-        "Lenyn Sosa",
-        "José Ramírez",
-        "Shea Langeliers",
-        "Riley Greene",
-        "Fernando Tatís Jr.",
-        "Pete Crow-Armstrong",
-        "Kyle Schwarber",
+        "Trevor Story", "Pete Alonso", "Lenyn Sosa", "José Ramírez",
+        "Shea Langeliers", "Riley Greene", "Fernando Tatís Jr.",
+        "Pete Crow-Armstrong", "Kyle Schwarber"
     ],
 }
 
+def get_hr(name):
+    try:
+        players = statsapi.lookup_player(name)
+        if not players:
+            return None
 
-@st.cache_data(ttl=REFRESH_SECONDS)
-def get_player_id(player_name: str):
-    matches = statsapi.lookup_player(player_name)
-    if not matches:
-        return None
+        active_players = [p for p in players if p.get("active")]
+        player = active_players[0] if active_players else players[0]
+        player_id = player["id"]
 
-    active_matches = [p for p in matches if p.get("active")]
-    if active_matches:
-        return active_matches[0]["id"]
-
-    return matches[0]["id"]
-
-
-@st.cache_data(ttl=REFRESH_SECONDS)
-def get_home_runs(player_id: int, season: int) -> int:
-    data = statsapi.player_stat_data(
-        player_id,
-        group="hitting",
-        type="season",
-        season=season,
-    )
-    stats = data.get("stats", {})
-    return int(stats.get("homeRuns", 0))
-
-
-@st.cache_data(ttl=REFRESH_SECONDS)
-def build_data(season: int):
-    rows = []
-
-    for team_name, players in TEAMS.items():
-        for player_name in players:
-            player_id = get_player_id(player_name)
-
-            if player_id is None:
-                rows.append(
-                    {
-                        "Team": team_name,
-                        "Player": player_name,
-                        "HR": None,
-                        "Status": "Player not found",
-                    }
-                )
-                continue
-
-            try:
-                hr = get_home_runs(player_id, season)
-                rows.append(
-                    {
-                        "Team": team_name,
-                        "Player": player_name,
-                        "HR": hr,
-                        "Status": "OK",
-                    }
-                )
-            except Exception as exc:
-                rows.append(
-                    {
-                        "Team": team_name,
-                        "Player": player_name,
-                        "HR": None,
-                        "Status": f"Error: {exc}",
-                    }
-                )
-
-    df = pd.DataFrame(rows)
-    df["HR_sort"] = df["HR"].fillna(-1)
-
-    overall = df.sort_values(["HR_sort", "Player"], ascending=[False, True]).drop(columns=["HR_sort"])
-
-    team_totals = (
-        df.assign(HR=df["HR"].fillna(0))
-        .groupby("Team", as_index=False)["HR"]
-        .sum()
-        .sort_values("HR", ascending=False)
-        .rename(columns={"HR": "Total HR"})
-    )
-
-    return overall, team_totals
-
-
-def render_team_tables(overall_df: pd.DataFrame):
-    for team_name in TEAMS.keys():
-        team_df = overall_df[overall_df["Team"] == team_name].copy()
-        team_total = int(team_df["HR"].fillna(0).sum())
-
-        st.subheader(f"{team_name} — {team_total} HR")
-        st.dataframe(
-            team_df[["Player", "HR", "Status"]],
-            use_container_width=True,
-            hide_index=True,
+        data = statsapi.player_stat_data(
+            player_id,
+            group="hitting",
+            type="season",
+            season=SEASON
         )
 
+        return int(data.get("stats", {}).get("homeRuns", 0))
+    except Exception:
+        return None
 
-def main():
-    st.set_page_config(page_title="MLB HR Tracker", layout="wide")
-    st.title("⚾ Custom MLB Home Run Tracker")
-    st.caption("Auto-refreshing scoreboard for your 3 custom teams")
+rows = []
+for team, players in TEAMS.items():
+    for player in players:
+        hr = get_hr(player)
+        rows.append({
+            "Team": team,
+            "Player": player,
+            "HR": hr,
+            "Status": "OK" if hr is not None else "No data found"
+        })
 
-    with st.sidebar:
-        st.header("Settings")
-        season = st.number_input("Season", min_value=2000, max_value=2100, value=SEASON, step=1)
-        st.write(f"Refresh interval: {REFRESH_SECONDS} seconds")
-        if st.button("Refresh now"):
-            st.cache_data.clear()
-            st.rerun()
+df = pd.DataFrame(rows)
+df["HR_sort"] = df["HR"].fillna(-1)
 
-    overall_df, team_totals_df = build_data(season)
+overall = df.sort_values(
+    ["HR_sort", "Player"],
+    ascending=[False, True]
+).drop(columns=["HR_sort"])
 
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        leader = overall_df.dropna(subset=["HR"]).iloc[0]
+team_totals = (
+    df.assign(HR=df["HR"].fillna(0))
+    .groupby("Team", as_index=False)["HR"]
+    .sum()
+    .rename(columns={"HR": "Total HR"})
+    .sort_values("Total HR", ascending=False)
+)
+
+st.set_page_config(page_title="MLB HR Tracker", layout="wide")
+st.title("⚾ MLB Home Run Tracker")
+st.write("Last updated:", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+valid_leaders = overall.dropna(subset=["HR"])
+
+st.subheader("Top Summary")
+col1, col2 = st.columns(2)
+
+with col1:
+    if not valid_leaders.empty:
+        leader = valid_leaders.iloc[0]
         st.metric("Home Run Leader", leader["Player"], f"{int(leader['HR'])} HR")
-    with c2:
-        top_team = team_totals_df.iloc[0]
+    else:
+        st.metric("Home Run Leader", "No data", "0 HR")
+
+with col2:
+    if not team_totals.empty:
+        top_team = team_totals.iloc[0]
         st.metric("Top Team", top_team["Team"], f"{int(top_team['Total HR'])} HR")
-    with c3:
-        st.metric("Last Updated", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    else:
+        st.metric("Top Team", "No data", "0 HR")
 
-    st.subheader("Team Rankings")
-    st.dataframe(team_totals_df, use_container_width=True, hide_index=True)
+st.subheader("Team Rankings")
+st.dataframe(team_totals, use_container_width=True, hide_index=True)
 
-    st.subheader("Overall Leaderboard")
-    st.dataframe(overall_df[["Player", "Team", "HR", "Status"]], use_container_width=True, hide_index=True)
+st.subheader("Overall Leaderboard")
+st.dataframe(
+    overall[["Player", "Team", "HR", "Status"]],
+    use_container_width=True,
+    hide_index=True
+)
 
-    st.divider()
-    render_team_tables(overall_df)
-
-    st.markdown(
-        f"<meta http-equiv='refresh' content='{REFRESH_SECONDS}'>",
-        unsafe_allow_html=True,
+for team in TEAMS:
+    st.subheader(team)
+    st.dataframe(
+        overall[overall["Team"] == team][["Player", "HR", "Status"]],
+        use_container_width=True,
+        hide_index=True
     )
-
-
-if __name__ == "__main__":
-    main()
