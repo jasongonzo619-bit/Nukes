@@ -4,7 +4,7 @@ import statsapi
 import streamlit as st
 
 REFRESH_SECONDS = 300
-CURRENT_SEASON = int(statsapi.latest_season()["seasonId"])
+CURRENT_SEASON = 2026
 
 TEAMS = {
     "King Gup": [
@@ -42,6 +42,7 @@ TEAMS = {
     ],
 }
 
+
 @st.cache_data(ttl=REFRESH_SECONDS)
 def get_player_id(player_name):
     try:
@@ -63,28 +64,15 @@ def get_hr(player_name):
         return None
 
     try:
-        data = statsapi.get(
-            "people",
-            {
-                "personIds": player_id,
-                "hydrate": f"stats(group=[hitting],type=[season],season={CURRENT_SEASON})",
-            },
+        data = statsapi.player_stat_data(
+            player_id,
+            group="hitting",
+            type="season",
+            season=CURRENT_SEASON,
         )
 
-        people = data.get("people", [])
-        if not people:
-            return None
-
-        stats = people[0].get("stats", [])
-        if not stats:
-            return 0
-
-        splits = stats[0].get("splits", [])
-        if not splits:
-            return 0
-
-        stat_block = splits[0].get("stat", {})
-        return int(stat_block.get("homeRuns", 0))
+        stats = data.get("stats", {})
+        return int(stats.get("homeRuns", 0))
     except Exception:
         return None
 
@@ -134,6 +122,12 @@ st.caption(f"Live {CURRENT_SEASON} season-to-date home run tracker")
 if st.button("Refresh now"):
     st.cache_data.clear()
     st.rerun()
+
+# Debug block
+with st.expander("Debug"):
+    st.write("Season being used:", CURRENT_SEASON)
+    st.write("Aaron Judge HR:", get_hr("Aaron Judge"))
+    st.write("Shohei Ohtani HR:", get_hr("Shohei Ohtani"))
 
 overall_df, team_totals_df = build_dataframe()
 valid_leaders = overall_df.dropna(subset=["HR"])
