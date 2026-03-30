@@ -29,7 +29,7 @@ TEAMS = {
         "Mike Trout",
         "Shohei Ohtani",
     ],
-    "Faggotron": [
+    "Gaycob": [
         "Trevor Story",
         "Pete Alonso",
         "Lenyn Sosa",
@@ -41,7 +41,6 @@ TEAMS = {
         "Kyle Schwarber",
     ],
 }
-
 
 @st.cache_data(ttl=REFRESH_SECONDS)
 def get_player_id(player_name):
@@ -64,15 +63,28 @@ def get_hr(player_name):
         return None
 
     try:
-        data = statsapi.player_stat_data(
-            player_id,
-            group="hitting",
-            type="season",
-            season=CURRENT_SEASON,
+        data = statsapi.get(
+            "people",
+            {
+                "personIds": player_id,
+                "hydrate": f"stats(group=[hitting],type=[season],season={CURRENT_SEASON})",
+            },
         )
 
-        stats = data.get("stats", {})
-        return int(stats.get("homeRuns", 0))
+        people = data.get("people", [])
+        if not people:
+            return None
+
+        stats = people[0].get("stats", [])
+        if not stats:
+            return 0
+
+        splits = stats[0].get("splits", [])
+        if not splits:
+            return 0
+
+        stat_block = splits[0].get("stat", {})
+        return int(stat_block.get("homeRuns", 0))
     except Exception:
         return None
 
