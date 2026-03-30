@@ -101,7 +101,6 @@ def get_hr(player_name: str):
         return None
 
 
-@st.cache_data(ttl=REFRESH_SECONDS)
 def build_dataframe():
     rows = []
 
@@ -138,14 +137,20 @@ def build_dataframe():
     return overall, team_totals
 
 
-st.set_page_config(page_title="MLB HR Tracker", layout="wide")
+st.set_page_config(page_title="MLB Home Run Tracker", layout="wide")
 
 st.title("⚾ MLB Home Run Tracker")
 st.caption(f"Live {CURRENT_SEASON} season-to-date home run tracker")
 
-if st.button("Refresh now"):
-    st.cache_data.clear()
-    st.rerun()
+col_a, col_b = st.columns([1, 1])
+
+with col_a:
+    if st.button("Refresh now"):
+        st.cache_data.clear()
+        st.rerun()
+
+with col_b:
+    st.write(f"Refresh interval: {REFRESH_SECONDS} seconds")
 
 with st.expander("Debug"):
     st.write("Season:", CURRENT_SEASON)
@@ -154,7 +159,9 @@ with st.expander("Debug"):
     st.write("Matt Olson HR:", get_hr("Matt Olson"))
 
 overall_df, team_totals_df = build_dataframe()
-valid_leaders = overall_df.dropna(subset=["HR"])
+
+valid_leaders = overall_df[overall_df["HR"].notna()].copy()
+valid_leaders = valid_leaders.sort_values(["HR", "Player"], ascending=[False, True])
 
 col1, col2, col3 = st.columns(3)
 
