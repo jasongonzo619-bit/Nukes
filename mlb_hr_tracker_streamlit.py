@@ -1,6 +1,8 @@
 from datetime import datetime
+from urllib.parse import quote
+
 import pandas as pd
-import statsapi
+import requests
 import streamlit as st
 
 REFRESH_SECONDS = 300
@@ -42,37 +44,59 @@ TEAMS = {
     ],
 }
 
+HEADERS = {
+    "User-Agent": "Mozilla/5.0"
+}
+
 
 @st.cache_data(ttl=REFRESH_SECONDS)
-def get_player_id(player_name):
+def lookup_player_id(player_name: str):
     try:
-        players = statsapi.lookup_player(player_name)
-        if not players:
+        url = f"https://statsapi.mlb.com/api/v1/people/search?names={quote(player_name)}&sportIds=1"
+        response = requests.get(url, headers=HEADERS, timeout=20)
+        response.raise_for_status()
+        data = response.json()
+
+        people = data.get("people", [])
+        if not people:
             return None
 
-        active_players = [p for p in players if p.get("active")]
-        player = active_players[0] if active_players else players[0]
-        return player["id"]
+        active_people = [p for p in people if p.get("active")]
+        player = active_people[0] if active_people else people[0]
+        return player.get("id")
     except Exception:
         return None
 
 
 @st.cache_data(ttl=REFRESH_SECONDS)
-def get_hr(player_name):
-    player_id = get_player_id(player_name)
-    if player_id is None:
+def get_hr(player_name: str):
+    player_id = lookup_player_id(player_name)
+    if not player_id:
         return None
 
     try:
-        data = statsapi.player_stat_data(
-            player_id,
-            group="hitting",
-            type="season",
-            season=CURRENT_SEASON,
+        url = (
+            f"https://statsapi.mlb.com/api/v1/people/{player_id}"
+            f"?hydrate=stats(group=[hitting],type=[season],season={CURRENT_SEASON})"
         )
+        response = requests.get(url, headers=HEADERS, timeout=20)
+        response.raise_for_status()
+        data = response.json()
 
-        stats = data.get("stats", {})
-        return int(stats.get("homeRuns", 0))
+        people = data.get("people", [])
+        if not people:
+            return None
+
+        stats = people[0].get("stats", [])
+        if not stats:
+            return 0
+
+        splits = stats[0].get("splits", [])
+        if not splits:
+            return 0
+
+        stat_block = splits[0].get("stat", {})
+        return int(stat_block.get("homeRuns", 0))
     except Exception:
         return None
 
@@ -123,11 +147,11 @@ if st.button("Refresh now"):
     st.cache_data.clear()
     st.rerun()
 
-# Debug block
 with st.expander("Debug"):
-    st.write("Season being used:", CURRENT_SEASON)
+    st.write("Season:", CURRENT_SEASON)
     st.write("Aaron Judge HR:", get_hr("Aaron Judge"))
     st.write("Shohei Ohtani HR:", get_hr("Shohei Ohtani"))
+    st.write("Matt Olson HR:", get_hr("Matt Olson"))
 
 overall_df, team_totals_df = build_dataframe()
 valid_leaders = overall_df.dropna(subset=["HR"])
